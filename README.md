@@ -58,7 +58,7 @@ flowchart TD
 1. **Input Sources**:
    - **HSDS International Specification**: Base schemas from the international Human Services Data Specification
    - **Profile Configuration** (`profile.json`): Metadata including title, base URL, version, and description for the UK profile
-   - **Schema Patches** (`profile/` directory): UK-specific modifications to extend or restrict HSDS schemas
+   - **[Schema Patches](./UK/profile/)** (`profile/` directory): UK-specific modifications to extend or restrict HSDS schemas
 
 2. **Profile Wizard Processing**:
    - Fetches HSDS schemas from specified branch (default or version-specific)
@@ -67,5 +67,6 @@ flowchart TD
    - Compiles core schemas (service, organization, location, service_at_location)
 
 3. **Generated Outputs**:
-   - **UK JSON Schemas**: Localized schema files in the `schema/` directory
+   - **[UK JSON Schemas](./UK/schema/)**: Localized schema files in the `UK/schema/` directory
    - **OpenAPI YAML**: API specification document describing the UK ORUK REST API endpoints
+
