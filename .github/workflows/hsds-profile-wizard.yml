@@ -1,0 +1,120 @@
+name: Generate profile schemas (HSDS Profile Wizard)
+
+on:
+  workflow_dispatch:
+    inputs:
+      hsds_branch:
+        description: Branch of the HSDS specification to base the profile on
+        required: true
+        default: "3.0"
+      wizard_ref:
+        description: Branch or tag of openreferral/hsds-profile-wizard to use
+        required: true
+        default: main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hsds-profile-wizard
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      HSDS_BRANCH: ${{ inputs.hsds_branch }}
+      WIZARD_REF: ${{ inputs.wizard_ref }}
+      WIZARD_IMAGE: hsds-profile-wizard:local
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Clone hsds-profile-wizard
+        run: |
+          WIZARD_DIR="$RUNNER_TEMP/hsds-profile-wizard"
+          echo "WIZARD_DIR=$WIZARD_DIR" >> "$GITHUB_ENV"
+          git clone --depth 1 --branch "$WIZARD_REF" \
+            https://github.com/openreferral/hsds-profile-wizard.git "$WIZARD_DIR"
+          echo "WIZARD_SHA=$(git -C "$WIZARD_DIR" rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Build Docker image
+        run: |
+          cat > "$WIZARD_DIR/Dockerfile" <<'EOF'
+          FROM python:3.12-slim
+          COPY . /opt/hsds-profile-wizard
+          RUN pip install --no-cache-dir -r /opt/hsds-profile-wizard/requirements.txt /opt/hsds-profile-wizard
+          WORKDIR /profile
+          ENTRYPOINT ["hsds-profile-wizard"]
+          EOF
+          docker build -t "$WIZARD_IMAGE" "$WIZARD_DIR"
+
+      - name: Run hsds-profile-wizard generate
+        run: |
+          # The wizard requires an initialised cache directory (normally created by `init`).
+          mkdir -p UK/.hsds-profile-wizard
+          [ -f UK/.hsds-profile-wizard/metadata.json ] || echo '{}' > UK/.hsds-profile-wizard/metadata.json
+
+          # `generate` deletes and recreates UK/schema/, so preserve the compiled schemas,
+          # which are produced by separate tooling.
+          if [ -d UK/schema/compiled ]; then
+            cp -a UK/schema/compiled "$RUNNER_TEMP/schema-compiled"
+          fi
+
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE/UK:/profile" \
+            "$WIZARD_IMAGE" generate --branch "$HSDS_BRANCH" 2>&1 | tee "$RUNNER_TEMP/wizard.log"
+
+          if [ -d "$RUNNER_TEMP/schema-compiled" ]; then
+            cp -a "$RUNNER_TEMP/schema-compiled" UK/schema/compiled
+          fi
+
+          {
+            echo "## HSDS Profile Wizard"
+            echo "- HSDS branch: \`$HSDS_BRANCH\`"
+            echo "- hsds-profile-wizard: \`$WIZARD_REF\` (\`$WIZARD_SHA\`)"
+            echo
+            echo "### Changed files"
+            echo '```'
+            git status --short -- UK/schema
+            echo '```'
+            if [ -s "$RUNNER_TEMP/wizard.log" ]; then
+              echo "### Wizard output"
+              echo '```'
+              cat "$RUNNER_TEMP/wizard.log"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit changes to a feature branch
+        env:
+          BRANCH: feature/hsds-profile-wizard-${{ github.run_id }}-${{ github.run_attempt }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          git add -- UK/schema
+          if git diff --cached --quiet; then
+            echo "No schema changes were generated; no branch created." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit \
+            -m "Regenerate profile schemas with hsds-profile-wizard" \
+            -m "HSDS branch: $HSDS_BRANCH" \
+            -m "hsds-profile-wizard: $WIZARD_REF ($WIZARD_SHA)"
+          git push origin "$BRANCH"
+
+          {
+            echo "### Branch"
+            echo "Changes pushed to [\`$BRANCH\`]($REPO_URL/tree/$BRANCH)."
+            echo "[Compare with main]($REPO_URL/compare/main...$BRANCH)"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
