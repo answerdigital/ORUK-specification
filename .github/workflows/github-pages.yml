@@ -1,0 +1,67 @@
+name: Deploy Swagger documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "UK/schema/**"
+      - "docs/**"
+      - ".github/workflows/github-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Build Swagger UI site
+        run: |
+          SITE_DIR="$RUNNER_TEMP/swagger-site"
+          mkdir -p "$SITE_DIR/schema"
+
+          SWAGGER_CONTAINER=$(docker create swaggerapi/swagger-ui:v5.31.0)
+          trap 'docker rm "$SWAGGER_CONTAINER" > /dev/null' EXIT
+          for file in swagger-ui.css swagger-ui-bundle.js swagger-ui-bundle.js.LICENSE.txt; do
+            docker cp "$SWAGGER_CONTAINER:/usr/share/nginx/html/$file" "$SITE_DIR/$file"
+          done
+          curl --fail --silent --show-error --location \
+            https://raw.githubusercontent.com/swagger-api/swagger-ui/v5.31.0/LICENSE \
+            --output "$SITE_DIR/LICENSE.swagger-ui"
+
+          cp docs/index.html "$SITE_DIR/index.html"
+          cp UK/schema/*.json "$SITE_DIR/schema/"
+
+          # Relocate references in deployment copies, leaving repository schemas unchanged.
+          sed -i 's|https://raw.githubusercontent.com/openreferral/uk-profile/main/schema/||g' \
+            "$SITE_DIR"/schema/*.json
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ runner.temp }}/swagger-site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
