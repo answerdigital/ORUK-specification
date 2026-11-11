@@ -59,5 +59,6 @@
   "tabular_required": [
     "service_id",
     "location_id"
-  ]
+  ],
+  "$id": "https://raw.githubusercontent.com/openreferral/uk-profile/main/schema/service_at_location.json"
 }

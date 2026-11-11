@@ -1,10 +1,10 @@
 {
    "properties": {
+     "metadata": null,
      "organization_id": null,
      "service_at_location_id": null,
      "location_id":null,
      "department":null,
-     "email":null,
 	 "phones":null
    },
    "required": [

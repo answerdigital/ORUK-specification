@@ -97,25 +97,26 @@
         "temporarily closed"
       ]
     },
-    "fees": {
-      "name": "fees",
+    "application_process": {
+      "name": "application_process",
       "type": "string",
-      "title": "Fees",
-      "description": "DEPRECATED: Details of any charges for service users to access this service.",
+      "title": "Application Process",
+      "description": "A free text description of the steps needed to access this service.",
       "constraints": {
         "unique": false
       },
-      "example": "fees_description"
+      "example": "If you are an NHS patient please ask your GP for a referral letter, we will then be in touch with you directly. If you are not an NHS patient you should ring our reception to arrange an appointment"
     },
-    "accreditations": {
-      "name": "accreditations",
+    "eligibility_description": {
+      "name": "eligibility_description",
       "type": "string",
-      "title": "Accreditations",
-      "description": "A free text description of any accreditations. Accreditation is the formal evaluation of an organization or program against best practice standards set by an accrediting organization.",
+      "title": "Eligibility Description",
+      "description": "A free text description of the type of person for whom this service is intended.",
       "constraints": {
         "unique": false
       },
-      "example": "All of our practitioners are accredited by the BASC, UKCP, and the Professional Standards Body"
+      "example": "This service is intended for all people aged 12 and over who require counselling services in the MyCity area",
+      "core": "Y"
     },
     "minimum_age": {
       "name": "minimum_age",
@@ -181,6 +182,15 @@
       },
       "example": "2023-03-15T10:30:45.123Z"
     },
+    "phones": {
+      "name": "phones",
+      "type": "array",
+      "title": "Phones",
+      "description": "The details of the telephone numbers used to contact organizations, services, and locations.",
+      "items": {
+        "$ref": "phone.json"
+      }
+    },
     "schedules": {
       "name": "schedules",
       "type": "array",
@@ -208,29 +218,11 @@
         "$ref": "service_at_location.json"
       }
     },
-    "languages": {
-      "name": "languages",
-      "type": "array",
-      "title": "Languages",
-      "description": "The details of the languages that are spoken at locations or services. This does not include languages which can only be used with interpretation.",
-      "items": {
-        "$ref": "language.json"
-      }
-    },
     "organization": {
       "name": "organization",
       "title": "Organization",
       "description": "The details about each organization delivering services. Each service should be linked to the organization responsible for its delivery. One organization may deliver many services.",
       "$ref": "organization.json"
-    },
-    "funding": {
-      "name": "funding",
-      "type": "array",
-      "title": "Funding",
-      "description": "The sources of funding for a service or organization.",
-      "items": {
-        "$ref": "funding.json"
-      }
     },
     "cost_options": {
       "name": "cost_options",
@@ -263,9 +255,11 @@
   "required": [
     "id",
     "name",
-    "status"
+    "status",
+    "organization_id"
   ],
   "tabular_required": [
     "organization_id"
-  ]
+  ],
+  "$id": "https://raw.githubusercontent.com/openreferral/uk-profile/main/schema/service.json"
 }

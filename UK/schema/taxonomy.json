@@ -76,5 +76,6 @@
     "id",
     "name",
     "description"
-  ]
+  ],
+  "$id": "https://raw.githubusercontent.com/openreferral/uk-profile/main/schema/taxonomy.json"
 }
